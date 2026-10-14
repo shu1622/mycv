@@ -1,0 +1,34 @@
+name: Pruebas y publicación Docker
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+jobs:
+  validar-publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.11.1'
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --watch=false --browsers=ChromeHeadlessCI
+      - run: npm run build
+      - run: docker build -t mycv:validado .
+      - name: Publicar imagen en Docker Hub
+        if: github.event_name != 'pull_request'
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        shell: bash
+        run: |
+          test -n "$DOCKER_USER" || { echo 'Falta el secret DOCKER_USER'; exit 1; }
+          test -n "$DOCKER_PASSWORD" || { echo 'Falta el secret DOCKER_PASSWORD'; exit 1; }
+          printf '%s' "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+          docker tag mycv:validado "$DOCKER_USER/mycv:$GITHUB_SHA"
+          docker tag mycv:validado "$DOCKER_USER/mycv:latest"
+          docker push "$DOCKER_USER/mycv:$GITHUB_SHA"
+          docker push "$DOCKER_USER/mycv:latest"

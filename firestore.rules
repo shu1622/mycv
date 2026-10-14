@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function propietario() {
+   return request.auth != null && request.auth.token.email_verified == true
+     && request.auth.token.email == 'linoandam@gmail.com';
+  }
+  match /{coleccion}/{documento} {
+   allow read: if coleccion in ['header','work-experience','education','skills','certificates','languages','interests'];
+   allow create, update, delete: if propietario() && coleccion in ['header','work-experience','education','skills','certificates','languages','interests'];
+  }
+ }
+}
